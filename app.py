@@ -1,11 +1,12 @@
 import joblib
 import pandas as pd
 import streamlit as st
+import os
 
 # Load the trained Random Forest model
 model = joblib.load("optimized_rf.pkl")
 
-# Save the exact training feature order (replace with your X_train.columns list)
+# Feature order from training
 feature_order = [
     'gender', 'SeniorCitizen', 'Partner', 'Dependents', 'tenure', 'PhoneService',
     'MultipleLines', 'InternetService', 'OnlineSecurity', 'OnlineBackup', 'DeviceProtection',
@@ -13,17 +14,22 @@ feature_order = [
     'PaymentMethod', 'MonthlyCharges', 'TotalCharges', 'Service_count'
 ]
 
-st.title("Telco Customer Churn Prediction")
+st.set_page_config(page_title="Telco Customer Churn Predictor", layout="centered")
 
-# --- Step 1: User Inputs ---
-tenure = st.number_input("Enter Tenure (Months)", min_value=0, max_value=100, value=0, step=1)
-monthlycharges = st.number_input("Enter Monthly Charges", min_value=0)
-total = st.number_input("Enter Total Charges", min_value=0)
-service_count = st.number_input("Enter the Service Count", min_value=0, max_value=3, step=1)
+st.title("📊 Telco Customer Churn Prediction")
+st.markdown("Predict whether a customer is likely to churn based on their account and service information.")
 
-Contract = st.selectbox("Contract Type", ['Monthly', "Yearly", "Two Year"])
-payment = st.selectbox("Payment Method", ['Electronic', "Mailed Check", "Bank Transfer", "Credit Card"])
-Internet = st.selectbox("Internet", ['DSL', "Fiber Optic", "No"])
+# --- Step 1: Sidebar Inputs ---
+st.sidebar.header("Customer Information")
+
+tenure = st.sidebar.number_input("Tenure (Months)", min_value=0, max_value=100, value=12, step=1)
+monthlycharges = st.sidebar.number_input("Monthly Charges ($)", min_value=0.0, value=70.0, step=1.0)
+total = st.sidebar.number_input("Total Charges ($)", min_value=0.0, value=1200.0, step=1.0)
+service_count = st.sidebar.number_input("Number of Services Subscribed", min_value=0, max_value=7, value=3, step=1)
+
+Contract = st.sidebar.selectbox("Contract Type", ['Monthly', "Yearly", "Two Year"])
+payment = st.sidebar.selectbox("Payment Method", ['Electronic', "Mailed Check", "Bank Transfer", "Credit Card"])
+Internet = st.sidebar.selectbox("Internet Service", ['DSL', "Fiber Optic", "No"])
 
 # --- Step 2: Encode categorical inputs ---
 contract_mapping = {"Monthly": 0, "Yearly": 1, "Two Year": 2}
@@ -65,19 +71,32 @@ user_inputs = {
 
 final_input = {**default_features, **user_inputs}
 
-# --- Step 5: Create DataFrame ---
+# --- Step 5: Create DataFrame and reorder columns ---
 df_input = pd.DataFrame([final_input])
-
-# --- Step 6: Reorder columns to match training ---
 df_input = df_input[feature_order]
 
-# --- Step 7: Prediction on button click ---
+# --- Step 6: Predict button ---
+st.markdown("---")
 if st.button("Predict Churn"):
     prediction = model.predict(df_input)[0]
     probability = model.predict_proba(df_input)[0][1]
 
+    # Show result with nice UI
     if prediction == 1:
-        st.warning(f"The customer is likely to churn. Probability: {probability:.2f}")
-        st.write("Customer is less likely to CHURN")
+        st.error(f"⚠️ The customer is likely to churn! Probability: {probability:.2f}")
     else:
-        st.success(f"The customer is unlikely to churn. Probability: {probability:.2f}")
+        st.success(f"✅ The customer is unlikely to churn. Probability: {probability:.2f}")
+
+    # --- Optional: Record prediction ---
+    record = df_input.copy()
+    record['Churn_Prediction'] = prediction
+    record['Churn_Probability'] = probability
+
+    record_file = "prediction_records.csv"
+    record.to_csv(record_file, mode='a', index=False, header=not os.path.exists(record_file))
+
+    
+
+# --- Step 7: Footer ---
+st.markdown("---")
+st.caption("Developed by InsightMonk | Powered by Random Forest Model")
