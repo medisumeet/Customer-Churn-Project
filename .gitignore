@@ -1,5 +1,4 @@
-# Ignore model files
-*.pkl
+
 
 # Ignore nested repositories
 Customer-Churn-Project/
